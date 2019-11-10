@@ -8,9 +8,20 @@ import (
     "os"
 )
 
+type Chat struct {
+    Id int `json:"id"`
+    Type string `json:"type"`
+}
+
+type Message struct {
+    Id   int  `json:"message_id"`
+    Timestamp int `json:"date"`
+    Chat Chat `json:"chat"`
+}
+
 type Update struct {
     Id   int  `json:"update_id"`
-    Message string `json:"message"`
+    Message Message `json:"message"`
 }
 
 func processUpdate(w http.ResponseWriter, req *http.Request) {
