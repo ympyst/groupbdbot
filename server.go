@@ -15,9 +15,14 @@ type Update struct {
 
 func processUpdate(w http.ResponseWriter, req *http.Request) {
     defer req.Body.Close()
+
+    fmt.Println("Received new request")
+    fmt.Println(req.Header)
+
     body, err := ioutil.ReadAll(req.Body)
     if err != nil {
         http.Error(w, err.Error(), 500)
+        fmt.Println("Error reading request body: " + err.Error())
         return
     }
 
@@ -25,6 +30,7 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
     err = json.Unmarshal(body, &upd)
     if err != nil {
         http.Error(w, err.Error(), 500)
+        fmt.Println("Error unmarshaling JSON: " + err.Error())
         return
     }
 
@@ -37,7 +43,7 @@ func main() {
     http.HandleFunc("/" + token, processUpdate)
 
     port := os.Getenv("PORT")
-    fmt.Printf("🔛 Now listening port %v", port)
+    fmt.Printf("🔛 Now listening port %v\n", port)
     err := http.ListenAndServe(":" + port, nil)
     if err != nil {
         panic(err)
