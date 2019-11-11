@@ -60,7 +60,8 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
         return
     }
 
-    fmt.Fprintf(w, string(resBody))
+    w.Header().Set("Content-Type", "application/json")
+    w.Write(resBody)
 }
 
 func main() {
