@@ -24,6 +24,12 @@ type Update struct {
     Message Message `json:"message"`
 }
 
+type SendMessageResponse struct {
+    Method string `json:"method"`
+    ChatId int `json:"chat_id"`
+    Text string `json:"text"`
+}
+
 func processUpdate(w http.ResponseWriter, req *http.Request) {
     defer req.Body.Close()
 
@@ -41,12 +47,20 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
     err = json.Unmarshal(body, &upd)
     if err != nil {
         http.Error(w, err.Error(), 500)
-        fmt.Println("Error unmarshaling JSON: " + err.Error())
+        fmt.Println("Error unmarshaling request JSON: " + err.Error())
+        return
+    }
+    fmt.Println(upd)
+
+    response := SendMessageResponse{"sendMessage", upd.Message.Chat.Id, "Hello"}
+    resBody, err := json.Marshal(response)
+    if err != nil {
+        http.Error(w, err.Error(), 500)
+        fmt.Println("Error marshaling response JSON: " + err.Error())
         return
     }
 
-    fmt.Println(upd)
-    fmt.Fprintf(w, "Hello\n")
+    fmt.Fprintf(w, string(resBody))
 }
 
 func main() {
