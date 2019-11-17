@@ -6,35 +6,13 @@ import (
     "io/ioutil"
     "net/http"
     "os"
+    tlg "groupbdbot/telegram"
 )
-
-type Chat struct {
-    Id int `json:"id"`
-    Type string `json:"type"`
-}
-
-type Message struct {
-    Id   int  `json:"message_id"`
-    Timestamp int `json:"date"`
-    Chat Chat `json:"chat"`
-}
-
-type Update struct {
-    Id   int  `json:"update_id"`
-    Message Message `json:"message"`
-}
-
-type SendMessageResponse struct {
-    Method string `json:"method"`
-    ChatId int `json:"chat_id"`
-    Text string `json:"text"`
-}
 
 func processUpdate(w http.ResponseWriter, req *http.Request) {
     defer req.Body.Close()
 
-    fmt.Println("Received new request")
-    fmt.Println(req.Header)
+    fmt.Print("\n➡ ️Received new request: ")
 
     body, err := ioutil.ReadAll(req.Body)
     if err != nil {
@@ -43,16 +21,16 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
         return
     }
 
-    var upd Update
+    var upd tlg.Update
     err = json.Unmarshal(body, &upd)
     if err != nil {
         http.Error(w, err.Error(), 500)
         fmt.Println("Error unmarshaling request JSON: " + err.Error())
         return
     }
-    fmt.Println(upd)
+    fmt.Printf("%+v\n", upd)
 
-    response := SendMessageResponse{"sendMessage", upd.Message.Chat.Id, "Hello"}
+    response := tlg.SendMessageResponse{"sendMessage", upd.Message.Chat.Id, "Hello"}
     resBody, err := json.Marshal(response)
     if err != nil {
         http.Error(w, err.Error(), 500)
@@ -69,7 +47,7 @@ func main() {
     http.HandleFunc("/" + token, processUpdate)
 
     port := os.Getenv("PORT")
-    fmt.Printf("🔛 Now listening port %v\n", port)
+    fmt.Printf("🤖 Now listening port %v\n", port)
     err := http.ListenAndServe(":" + port, nil)
     if err != nil {
         panic(err)
