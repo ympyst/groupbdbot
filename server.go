@@ -3,10 +3,14 @@ package main
 import (
     "encoding/json"
     "fmt"
+    "time"
     "io/ioutil"
     "net/http"
     "os"
     tlg "groupbdbot/telegram"
+    "github.com/jinzhu/gorm"
+    _ "github.com/jinzhu/gorm/dialects/postgres"
+    "groupbdbot/groupdb"
 )
 
 func processUpdate(w http.ResponseWriter, req *http.Request) {
@@ -30,7 +34,28 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
     }
     fmt.Printf("%+v\n", upd)
 
-    response := tlg.SendMessageResponse{"sendMessage", upd.Message.Chat.Id, "Hello"}
+    db, err := gorm.Open("postgres", os.Getenv("DB_DSN"))
+    defer db.Close()
+    if err != nil {
+        panic(err)
+    }
+
+    var members []groupdb.Member
+    db.Where("group_id = ?", 1).Find(&members)
+    fmt.Println(members)
+
+    messageText := ""
+    for _, member := range members  {
+        bd, err := time.Parse(time.RFC3339, member.Birthday)
+        if err != nil {
+            panic(err)
+        }
+        month := bd.Month()
+        day := bd.Day()
+        messageText += fmt.Sprintf("%s %s %v.%v\n", member.FirstName, member.LastName, day, month)
+    }
+
+    response := tlg.SendMessageResponse{"sendMessage", upd.Message.Chat.Id, messageText}
     resBody, err := json.Marshal(response)
     if err != nil {
         http.Error(w, err.Error(), 500)
