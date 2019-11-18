@@ -1,10 +1,15 @@
 package groupdb
 
-type Member struct {
+type Group struct {
 	Id int
-	GroupId int
-	FirstName string
-	LastName string
-	Birthday string
-	TelegramId string
+	Name string
+}
+
+type Member struct {
+	Id               int
+	GroupId          int
+	FirstName        string
+	LastName         string
+	Birthday         string
+	TelegramUsername string
 }

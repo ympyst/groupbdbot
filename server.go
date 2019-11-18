@@ -40,22 +40,39 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
         panic(err)
     }
 
-    var members []groupdb.Member
-    db.Where("group_id = ?", 1).Find(&members)
-    fmt.Println(members)
+    responseMessageText := ""
 
-    messageText := ""
-    for _, member := range members  {
-        bd, err := time.Parse(time.RFC3339, member.Birthday)
-        if err != nil {
-            panic(err)
+    switch upd.Message.Text {
+    case "/start":
+        responseMessageText = "Welcome to Group Birthday Bot!\nUse /show_groups to list your groups"
+        break
+    case "/show_groups":
+        var members []groupdb.Member
+        db.Where("telegram_username = ?", upd.Message.UserFrom.Username).Find(&members)
+        var groups []groupdb.Group
+        db.Where("id = ?", members[0].GroupId).Find(&groups)
+
+        for _, group := range groups {
+            responseMessageText = fmt.Sprintf("%s\n", group.Name)
         }
-        month := bd.Month()
-        day := bd.Day()
-        messageText += fmt.Sprintf("%s %s %v.%v\n", member.FirstName, member.LastName, day, month)
+    case "/list_birthdays":
+        var members []groupdb.Member
+        db.Where("group_id = ?", 1).Find(&members)
+        fmt.Println(members)
+
+        for _, member := range members  {
+            bd, err := time.Parse(time.RFC3339, member.Birthday)
+            if err != nil {
+                panic(err)
+            }
+            month := bd.Month()
+            day := bd.Day()
+            responseMessageText += fmt.Sprintf("%s %s %v.%v\n", member.FirstName, member.LastName, day, month)
+        }
+        break
     }
 
-    response := tlg.SendMessageResponse{"sendMessage", upd.Message.Chat.Id, messageText}
+    response := tlg.SendMessageResponse{"sendMessage", upd.Message.Chat.Id, responseMessageText}
     resBody, err := json.Marshal(response)
     if err != nil {
         http.Error(w, err.Error(), 500)
