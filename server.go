@@ -47,18 +47,18 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
         responseMessageText = "Welcome to Group Birthday Bot!\nUse /show_groups to list your groups"
         break
     case "/show_groups":
-        var members []groupdb.Member
-        db.Where("telegram_username = ?", upd.Message.UserFrom.Username).Find(&members)
+        var member groupdb.Member
+        db.Where("telegram_username = ?", upd.Message.UserFrom.Username).Take(&member)
         var groups []groupdb.Group
-        db.Where("id = ?", members[0].GroupId).Find(&groups)
-
-        for _, group := range groups {
+        db.Model(&member).Related(&groups,  "Groups")
+        for _, group := range groups  {
             responseMessageText = fmt.Sprintf("%s\n", group.Name)
         }
     case "/list_birthdays":
+        var group []groupdb.Group
+        db.First(&group)
         var members []groupdb.Member
-        db.Where("group_id = ?", 1).Find(&members)
-        fmt.Println(members)
+        db.Model(&group).Related(&members, "Members")
 
         for _, member := range members  {
             bd, err := time.Parse(time.RFC3339, member.Birthday)

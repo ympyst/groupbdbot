@@ -1,15 +1,16 @@
 package groupdb
 
 type Group struct {
-	Id int
-	Name string
+	ID      int
+	Name    string
+	Members []Member `gorm:"many2many:group_members;"`
 }
 
 type Member struct {
-	Id               int
-	GroupId          int
+	ID               int
 	FirstName        string
 	LastName         string
 	Birthday         string
 	TelegramUsername string
+	Groups           []Group `gorm:"many2many:group_members;"`
 }
