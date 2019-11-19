@@ -3,14 +3,14 @@ package main
 import (
     "encoding/json"
     "fmt"
-    "time"
-    "io/ioutil"
-    "net/http"
-    "os"
-    tlg "groupbdbot/telegram"
     "github.com/jinzhu/gorm"
     _ "github.com/jinzhu/gorm/dialects/postgres"
     "groupbdbot/groupdb"
+    tlg "groupbdbot/telegram"
+    "io/ioutil"
+    "net/http"
+    "os"
+    "time"
 )
 
 func processUpdate(w http.ResponseWriter, req *http.Request) {
@@ -50,8 +50,8 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
         var member groupdb.Member
         db.Where("telegram_username = ?", upd.Message.UserFrom.Username).Take(&member)
         var groups []groupdb.Group
-        db.Model(&member).Related(&groups,  "Groups")
-        for _, group := range groups  {
+        db.Model(&member).Related(&groups, "Groups")
+        for _, group := range groups {
             responseMessageText = fmt.Sprintf("%s\n", group.Name)
         }
     case "/list_birthdays":
@@ -60,7 +60,7 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
         var members []groupdb.Member
         db.Model(&group).Related(&members, "Members")
 
-        for _, member := range members  {
+        for _, member := range members {
             bd, err := time.Parse(time.RFC3339, member.Birthday)
             if err != nil {
                 panic(err)
@@ -70,6 +70,8 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
             responseMessageText += fmt.Sprintf("%s %s %v.%v\n", member.FirstName, member.LastName, day, month)
         }
         break
+    default:
+        responseMessageText = "Unknown command"
     }
 
     response := tlg.SendMessageResponse{"sendMessage", upd.Message.Chat.Id, responseMessageText}
