@@ -52,7 +52,7 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
         var groups []groupdb.Group
         db.Model(&member).Related(&groups, "Groups")
         for _, group := range groups {
-            responseMessageText = fmt.Sprintf("%s\n", group.Name)
+           responseMessageText += fmt.Sprintf("%s\n", group.Name)
         }
     case "/list_birthdays":
         var group []groupdb.Group
