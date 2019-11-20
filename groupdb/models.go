@@ -14,3 +14,23 @@ type Member struct {
 	TelegramUsername string
 	Groups           []Group `gorm:"many2many:group_members;"`
 }
+
+type Fundraiser struct {
+	Group       Group
+	GroupId     int
+	Member      Member
+	MemberId    int
+	PhoneNumber string
+	BanksList   string
+}
+
+type BirthdayCelebration struct {
+	Group          Group
+	GroupId        int
+	Member         Member
+	MemberId       int
+	Fundraiser     Fundraiser
+	FundraiserId   int
+	TelegramChatId int
+	Year           int
+}
