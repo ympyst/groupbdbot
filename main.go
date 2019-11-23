@@ -3,15 +3,18 @@ package main
 import (
     "encoding/json"
     "fmt"
-    "github.com/jinzhu/gorm"
     _ "github.com/jinzhu/gorm/dialects/postgres"
-    "groupbdbot/groupdb"
+    "golang.org/x/net/context"
+    "google.golang.org/grpc"
     tlg "groupbdbot/telegram"
+    "github.com/ympyst/groupbirthday/proto"
     "io/ioutil"
+    "log"
     "net/http"
     "os"
-    "time"
 )
+
+var groupBirthdayClient proto.GroupBirthdayClient
 
 func processUpdate(w http.ResponseWriter, req *http.Request) {
     defer req.Body.Close()
@@ -34,41 +37,29 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
     }
     fmt.Printf("%+v\n", upd)
 
-    db, err := gorm.Open("postgres", os.Getenv("DB_DSN"))
-    defer db.Close()
-    if err != nil {
-        panic(err)
-    }
-
     responseMessageText := ""
 
     switch upd.Message.Text {
     case "/start":
-        responseMessageText = "Welcome to Group Birthday Bot!\nUse /show_groups to list your groups"
+        responseMessageText = "Welcome to Group Birthday Bot!\nUse /show_groups to list your groupsReply"
         break
     case "/show_groups":
-        var member groupdb.Member
-        db.Where("telegram_username = ?", upd.Message.UserFrom.Username).Take(&member)
-        var groups []groupdb.Group
-        db.Model(&member).Related(&groups, "Groups")
-        for _, group := range groups {
-           responseMessageText += fmt.Sprintf("%s\n", group.Name)
+        ctx := context.Background()
+        memberIdReply, err := groupBirthdayClient.GetMemberId(ctx, &proto.GetMemberIdRequest{TelegramUsername: upd.Message.UserFrom.Username})
+        if err != nil {
+            panic(err)
+        }
+        groupsReply, err := groupBirthdayClient.GetGroups(ctx, &proto.GetGroupsRequest{
+            MemberId: memberIdReply.MemberId,
+        })
+        if err != nil {
+            panic(err)
+        }
+        for _, groupName := range groupsReply.Groups {
+           responseMessageText += fmt.Sprintf("%s\n", groupName)
         }
     case "/list_birthdays":
-        var group []groupdb.Group
-        db.First(&group)
-        var members []groupdb.Member
-        db.Model(&group).Related(&members, "Members")
-
-        for _, member := range members {
-            bd, err := time.Parse(time.RFC3339, member.Birthday)
-            if err != nil {
-                panic(err)
-            }
-            month := bd.Month()
-            day := bd.Day()
-            responseMessageText += fmt.Sprintf("%s %s %v.%v\n", member.FirstName, member.LastName, day, month)
-        }
+        responseMessageText = "Temporarily not available"
         break
     default:
         responseMessageText = "Unknown command"
@@ -90,9 +81,18 @@ func main() {
     token := os.Getenv("TOKEN")
     http.HandleFunc("/" + token, processUpdate)
 
+    var opts []grpc.DialOption
+    opts = append(opts, grpc.WithInsecure())
+    conn, err := grpc.Dial(os.Getenv("SERVER_ADDR"), opts...)
+    if err != nil {
+        log.Fatalf("fail to dial: %v", err)
+    }
+    defer conn.Close()
+    groupBirthdayClient = proto.NewGroupBirthdayClient(conn)
+
     port := os.Getenv("PORT")
     fmt.Printf("🤖 Now listening port %v\n", port)
-    err := http.ListenAndServe(":" + port, nil)
+    err = http.ListenAndServe(":" + port, nil)
     if err != nil {
         panic(err)
     }
