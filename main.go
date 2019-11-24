@@ -7,14 +7,14 @@ import (
     "golang.org/x/net/context"
     "google.golang.org/grpc"
     tlg "groupbdbot/telegram"
-    "github.com/ympyst/groupbirthday/proto"
+    contract "github.com/ympyst/groupbirthday/contract"
     "io/ioutil"
     "log"
     "net/http"
     "os"
 )
 
-var groupBirthdayClient proto.GroupBirthdayClient
+var groupBirthdayClient contract.GroupBirthdayClient
 
 func processUpdate(w http.ResponseWriter, req *http.Request) {
     defer req.Body.Close()
@@ -38,18 +38,18 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
     fmt.Printf("%+v\n", upd)
 
     responseMessageText := ""
+    ctx := context.Background()
 
     switch upd.Message.Text {
     case "/start":
         responseMessageText = "Welcome to Group Birthday Bot!\nUse /show_groups to list your groupsReply"
         break
     case "/show_groups":
-        ctx := context.Background()
-        memberIdReply, err := groupBirthdayClient.GetMemberId(ctx, &proto.GetMemberIdRequest{TelegramUsername: upd.Message.UserFrom.Username})
+        memberIdReply, err := groupBirthdayClient.GetMemberId(ctx, &contract.GetMemberIdRequest{TelegramUsername: upd.Message.UserFrom.Username})
         if err != nil {
             panic(err)
         }
-        groupsReply, err := groupBirthdayClient.GetGroups(ctx, &proto.GetGroupsRequest{
+        groupsReply, err := groupBirthdayClient.GetGroups(ctx, &contract.GetGroupsRequest{
             MemberId: memberIdReply.MemberId,
         })
         if err != nil {
@@ -59,7 +59,14 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
            responseMessageText += fmt.Sprintf("%s\n", groupName)
         }
     case "/list_birthdays":
-        responseMessageText = "Temporarily not available"
+        memberBirthdaysReply, err := groupBirthdayClient.GetMemberBirthdays(ctx, &contract.GetMemberBirthdaysRequest{GroupName: "family"})
+        if err != nil {
+            panic(err)
+        }
+
+        for _, birthday := range memberBirthdaysReply.MemberBirthdays {
+            responseMessageText += fmt.Sprintf("%s %s %v.%v\n", birthday.FirstName, birthday.LastName, birthday.Day, birthday.Month)
+        }
         break
     default:
         responseMessageText = "Unknown command"
@@ -88,7 +95,7 @@ func main() {
         log.Fatalf("fail to dial: %v", err)
     }
     defer conn.Close()
-    groupBirthdayClient = proto.NewGroupBirthdayClient(conn)
+    groupBirthdayClient = contract.NewGroupBirthdayClient(conn)
 
     port := os.Getenv("PORT")
     fmt.Printf("🤖 Now listening port %v\n", port)
