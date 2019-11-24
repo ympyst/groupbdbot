@@ -88,9 +88,11 @@ func main() {
     token := os.Getenv("TOKEN")
     http.HandleFunc("/" + token, processUpdate)
 
+    serverAddr := os.Getenv("SERVER_ADDR")
+    fmt.Println(serverAddr)
     var opts []grpc.DialOption
     opts = append(opts, grpc.WithInsecure())
-    conn, err := grpc.Dial(os.Getenv("SERVER_ADDR"), opts...)
+    conn, err := grpc.Dial(serverAddr, opts...)
     if err != nil {
         log.Fatalf("fail to dial: %v", err)
     }
