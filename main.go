@@ -18,10 +18,11 @@ var groupBirthdayClient contract.GroupBirthdayClient
 
 type UserSession struct {
     UserId int
+    State string
     SelectedGroupName string
 }
 
-var userSessions []UserSession
+var userSessions map[int]*UserSession
 
 func processUpdate(w http.ResponseWriter, req *http.Request) {
     defer req.Body.Close()
@@ -44,6 +45,7 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
     }
     fmt.Printf("%+v\n", upd)
 
+    userId := upd.Message.UserFrom.Id
     responseMessageText := ""
     ctx := context.Background()
 
@@ -70,6 +72,12 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
         replyKeyboard.OneTimeKeyboard = true
         replyKeyboard.Selective = true
         replyKeyboard.ResizeKeyboard = true
+
+        userSessions[userId] = &UserSession{
+            UserId:            userId,
+            State:             "awaits_group_selection",
+            SelectedGroupName: "",
+        }
         break
     case "/list_birthdays":
         memberBirthdaysReply, err := groupBirthdayClient.GetMemberBirthdays(ctx, &contract.GetMemberBirthdaysRequest{GroupName: "family"})
@@ -82,10 +90,18 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
         }
         break
     default:
-        responseMessageText = "Unknown command"
+        if _, ok := userSessions[userId]; ok {
+            if userSessions[userId].State == "awaits_group_selection" {
+                userSessions[userId].SelectedGroupName = upd.Message.Text
+                userSessions[userId].State = "group_selected"
+            }
+        } else {
+            responseMessageText = "Unknown command"
+        }
     }
 
-    fmt.Println(replyKeyboard)
+    fmt.Printf("%v", userSessions[userId])
+
     response := tlg.SendMessageResponse{
         Method:      "sendMessage",
         ChatId:      upd.Message.Chat.Id,
@@ -134,6 +150,8 @@ func main() {
     }
     defer conn.Close()
     groupBirthdayClient = contract.NewGroupBirthdayClient(conn)
+
+    userSessions = make(map[int]*UserSession)
 
     port := os.Getenv("PORT")
     fmt.Printf("🤖 Now listening port %v\n", port)
