@@ -40,4 +40,16 @@ type SendMessageResponse struct {
 	Method string `json:"method"`
 	ChatId int `json:"chat_id"`
 	Text string `json:"text"`
+	ReplyMarkup ReplyKeyboardMarkup `json:"reply_markup"`
+}
+
+type ReplyKeyboardMarkup struct {
+	Keyboard [][]KeyboardButton `json:"keyboard"`
+	ResizeKeyboard bool `json:"resize_keyboard"`
+	OneTimeKeyboard bool `json:"one_time_keyboard"`
+	Selective bool `json:"selective"`
+}
+
+type KeyboardButton struct {
+	Text string `json:"text"`
 }

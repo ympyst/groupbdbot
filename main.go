@@ -4,10 +4,10 @@ import (
     "encoding/json"
     "fmt"
     _ "github.com/jinzhu/gorm/dialects/postgres"
+    contract "github.com/ympyst/groupbirthday/contract"
     "golang.org/x/net/context"
     "google.golang.org/grpc"
     tlg "groupbdbot/telegram"
-    contract "github.com/ympyst/groupbirthday/contract"
     "io/ioutil"
     "log"
     "net/http"
@@ -40,24 +40,28 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
     responseMessageText := ""
     ctx := context.Background()
 
+    var replyKeyboard tlg.ReplyKeyboardMarkup
+
     switch upd.Message.Text {
     case "/start":
-        responseMessageText = "Welcome to Group Birthday Bot!\nUse /show_groups to list your groupsReply"
+        responseMessageText = "Welcome to Group Birthday Bot!\nUse /show_groups to list your groups"
         break
     case "/show_groups":
-        memberIdReply, err := groupBirthdayClient.GetMemberId(ctx, &contract.GetMemberIdRequest{TelegramUsername: upd.Message.UserFrom.Username})
-        if err != nil {
-            panic(err)
-        }
-        groupsReply, err := groupBirthdayClient.GetGroups(ctx, &contract.GetGroupsRequest{
-            MemberId: memberIdReply.MemberId,
-        })
-        if err != nil {
-            panic(err)
-        }
+        groupsReply := getGroupsByUsername(ctx, upd.Message.UserFrom.Username)
         for _, groupName := range groupsReply.Groups {
            responseMessageText += fmt.Sprintf("%s\n", groupName)
         }
+    case "/select_group":
+        responseMessageText = "Select group:"
+        groupsReply := getGroupsByUsername(ctx, upd.Message.UserFrom.Username)
+        replyKeyboard.Keyboard = make([][]tlg.KeyboardButton, len(groupsReply.Groups))
+        for i := 0; i < len(groupsReply.Groups); i++ {
+            replyKeyboard.Keyboard[i] = make([]tlg.KeyboardButton, 1)
+            replyKeyboard.Keyboard[i][0].Text = groupsReply.Groups[i]
+        }
+        replyKeyboard.OneTimeKeyboard = true
+        replyKeyboard.Selective = true
+        replyKeyboard.ResizeKeyboard = true
     case "/list_birthdays":
         memberBirthdaysReply, err := groupBirthdayClient.GetMemberBirthdays(ctx, &contract.GetMemberBirthdaysRequest{GroupName: "family"})
         if err != nil {
@@ -71,8 +75,13 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
     default:
         responseMessageText = "Unknown command"
     }
-
-    response := tlg.SendMessageResponse{"sendMessage", upd.Message.Chat.Id, responseMessageText}
+    
+    response := tlg.SendMessageResponse{
+        Method:      "sendMessage",
+        ChatId:      upd.Message.Chat.Id,
+        Text:        responseMessageText,
+        ReplyMarkup: replyKeyboard,
+    }
     resBody, err := json.Marshal(response)
     if err != nil {
         http.Error(w, err.Error(), 500)
@@ -82,6 +91,20 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
 
     w.Header().Set("Content-Type", "application/json")
     w.Write(resBody)
+}
+
+func getGroupsByUsername(ctx context.Context, username string) *contract.GetGroupsReply  {
+    memberIdReply, err := groupBirthdayClient.GetMemberId(ctx, &contract.GetMemberIdRequest{TelegramUsername: username})
+    if err != nil {
+        panic(err)
+    }
+    groupsReply, err := groupBirthdayClient.GetGroups(ctx, &contract.GetGroupsRequest{
+        MemberId: memberIdReply.MemberId,
+    })
+    if err != nil {
+        panic(err)
+    }
+    return groupsReply
 }
 
 func main() {
