@@ -16,6 +16,13 @@ import (
 
 var groupBirthdayClient contract.GroupBirthdayClient
 
+type UserSession struct {
+    UserId int
+    SelectedGroupName string
+}
+
+var userSessions []UserSession
+
 func processUpdate(w http.ResponseWriter, req *http.Request) {
     defer req.Body.Close()
 
@@ -51,6 +58,7 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
         for _, groupName := range groupsReply.Groups {
            responseMessageText += fmt.Sprintf("%s\n", groupName)
         }
+        break
     case "/select_group":
         responseMessageText = "Select group:"
         groupsReply := getGroupsByUsername(ctx, upd.Message.UserFrom.Username)
@@ -62,6 +70,7 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
         replyKeyboard.OneTimeKeyboard = true
         replyKeyboard.Selective = true
         replyKeyboard.ResizeKeyboard = true
+        break
     case "/list_birthdays":
         memberBirthdaysReply, err := groupBirthdayClient.GetMemberBirthdays(ctx, &contract.GetMemberBirthdaysRequest{GroupName: "family"})
         if err != nil {
@@ -75,13 +84,17 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
     default:
         responseMessageText = "Unknown command"
     }
-    
+
+    fmt.Println(replyKeyboard)
     response := tlg.SendMessageResponse{
         Method:      "sendMessage",
         ChatId:      upd.Message.Chat.Id,
         Text:        responseMessageText,
-        ReplyMarkup: replyKeyboard,
     }
+    if len(replyKeyboard.Keyboard)>0 {
+        response.ReplyMarkup = &replyKeyboard
+    }
+
     resBody, err := json.Marshal(response)
     if err != nil {
         http.Error(w, err.Error(), 500)

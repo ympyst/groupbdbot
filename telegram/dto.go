@@ -40,7 +40,7 @@ type SendMessageResponse struct {
 	Method string `json:"method"`
 	ChatId int `json:"chat_id"`
 	Text string `json:"text"`
-	ReplyMarkup ReplyKeyboardMarkup `json:"reply_markup"`
+	ReplyMarkup *ReplyKeyboardMarkup `json:"reply_markup,omitempty"`
 }
 
 type ReplyKeyboardMarkup struct {
