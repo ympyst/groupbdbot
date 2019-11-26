@@ -15,5 +15,6 @@ bin
 #Goland
 .idea
 
-#Local Docker run
-.env
+#Local run
+local/.env
+local/test-request.http
