@@ -45,6 +45,14 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
     fmt.Printf("%+v\n", upd)
 
     userId := upd.Message.UserFrom.Id
+    if _, ok := userSessions[userId]; !ok {
+        fmt.Println("New user")
+        userSessions[userId] = &UserSession{
+            UserId:            userId,
+            State:             "initial",
+            SelectedGroupName: "",
+        }
+    }
     responseMessageText := ""
     ctx := context.Background()
 
@@ -79,21 +87,23 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
         }
         break
     case "/list_birthdays":
-        memberBirthdaysReply, err := groupBirthdayClient.GetMemberBirthdays(ctx, &contract.GetMemberBirthdaysRequest{GroupName: "family"})
-        if err != nil {
-            panic(err)
+        if userSessions[userId].State == "group_selected" {
+            memberBirthdaysReply, err := groupBirthdayClient.GetMemberBirthdays(ctx, &contract.GetMemberBirthdaysRequest{GroupName: userSessions[userId].SelectedGroupName})
+            if err != nil {
+                panic(err)
+            }
+            for _, birthday := range memberBirthdaysReply.MemberBirthdays {
+                responseMessageText += fmt.Sprintf("%s %s %v.%v\n", birthday.FirstName, birthday.LastName, birthday.Day, birthday.Month)
+            }
+        } else {
+            responseMessageText = "No group selected. Use /select_group"
         }
 
-        for _, birthday := range memberBirthdaysReply.MemberBirthdays {
-            responseMessageText += fmt.Sprintf("%s %s %v.%v\n", birthday.FirstName, birthday.LastName, birthday.Day, birthday.Month)
-        }
         break
     default:
-        if _, ok := userSessions[userId]; ok {
-            if userSessions[userId].State == "awaits_group_selection" {
-                userSessions[userId].SelectedGroupName = upd.Message.Text
-                userSessions[userId].State = "group_selected"
-            }
+        if userSessions[userId].State == "awaits_group_selection" {
+            userSessions[userId].SelectedGroupName = upd.Message.Text
+            userSessions[userId].State = "group_selected"
         } else {
             responseMessageText = "Unknown command"
         }
