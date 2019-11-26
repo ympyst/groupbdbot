@@ -33,14 +33,25 @@ type MessageEntity struct {
 
 type Update struct {
 	Id   int  `json:"update_id"`
-	Message Message `json:"message"`
+	Message *Message `json:"message,omitempty"`
+	CallbackQuery *CallbackQuery `json:"callback_query,omitempty"`
 }
+
+type CallbackQuery struct {
+	Id       string `json:"id"`
+	UserFrom User   `json:"from"`
+	Data     string `json:"data"`
+} 
 
 type SendMessageResponse struct {
 	Method string `json:"method"`
 	ChatId int `json:"chat_id"`
 	Text string `json:"text"`
-	ReplyMarkup *ReplyKeyboardMarkup `json:"reply_markup,omitempty"`
+	ReplyMarkup *InlineKeyboardMarkup `json:"reply_markup,omitempty"`
+}
+
+type AnswerCallbackQueryResponse struct {
+	CallbackQueryId string `json:"callback_query_id"`
 }
 
 type ReplyKeyboardMarkup struct {
@@ -53,3 +64,12 @@ type ReplyKeyboardMarkup struct {
 type KeyboardButton struct {
 	Text string `json:"text"`
 }
+
+type InlineKeyboardMarkup struct {
+	Keyboard [][]InlineKeyboardButton `json:"inline_keyboard"`
+}
+
+type InlineKeyboardButton struct {
+	Text string `json:"text"`
+	CallbackData string `json:"callback_data"`
+} 

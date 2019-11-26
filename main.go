@@ -11,6 +11,7 @@ import (
     "log"
     "net/http"
     "os"
+    "strings"
 )
 
 var groupBirthdayClient contract.GroupBirthdayClient
@@ -50,23 +51,67 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
         fmt.Println("Error unmarshaling request JSON: " + err.Error())
         return
     }
-    fmt.Printf("%+v\n", upd)
 
-    userId := upd.Message.UserFrom.Id
-    if _, ok := userSessions[userId]; !ok {
-        fmt.Println("New user")
-        userSessions[userId] = &UserSession{
-            UserId:            userId,
-            State:             Initiated,
-            SelectedGroupName: "",
+    fmt.Printf("Message: %+v, CallbackQuery: %+v\n", upd.Message, upd.CallbackQuery)
+
+    var userId int;
+    var responseBody []byte
+
+    if upd.Message != nil {
+        userId = upd.Message.UserFrom.Id
+        if _, ok := userSessions[userId]; !ok {
+            userSessions[userId] = &UserSession{
+                UserId:            userId,
+                State:             Initiated,
+                SelectedGroupName: "",
+            }
+        }
+        response := processMessage(upd.Message)
+        responseBody, err = json.Marshal(response)
+        if err != nil {
+            http.Error(w, err.Error(), 500)
+            fmt.Println("Error marshaling response JSON: " + err.Error())
+            return
+        }
+    } else if upd.CallbackQuery != nil {
+        userId = upd.CallbackQuery.UserFrom.Id
+        response := processCallbackQuery(upd.CallbackQuery)
+        responseBody, err = json.Marshal(response)
+        if err != nil {
+            http.Error(w, err.Error(), 500)
+            fmt.Println("Error marshaling response JSON: " + err.Error())
+            return
         }
     }
+
+    fmt.Printf("User session: %v", userSessions[userId])
+
+    w.Header().Set("Content-Type", "application/json")
+    w.Write(responseBody)
+}
+
+func getGroupsByUsername(ctx context.Context, username string) *contract.GetGroupsReply  {
+    memberIdReply, err := groupBirthdayClient.GetMemberId(ctx, &contract.GetMemberIdRequest{TelegramUsername: username})
+    if err != nil {
+        panic(err)
+    }
+    groupsReply, err := groupBirthdayClient.GetGroups(ctx, &contract.GetGroupsRequest{
+        MemberId: memberIdReply.MemberId,
+    })
+    if err != nil {
+        panic(err)
+    }
+    return groupsReply
+}
+
+func processMessage(message *tlg.Message) tlg.SendMessageResponse {
     responseMessageText := ""
     ctx := context.Background()
+    userId := message.UserFrom.Id
 
-    var replyKeyboard tlg.ReplyKeyboardMarkup
+    var keyboard tlg.InlineKeyboardMarkup
 
-    switch upd.Message.Text {
+    switch message.Text {
     case "/start":
         responseMessageText = "Welcome to Group Birthday Bot!\n" +
             "Available commands:\n" +
@@ -75,22 +120,20 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
             "/list_birthdays - show members list of selected group with their birthday dates\n"
         break
     case "/show_groups":
-        groupsReply := getGroupsByUsername(ctx, upd.Message.UserFrom.Username)
+        groupsReply := getGroupsByUsername(ctx, message.UserFrom.Username)
         for _, groupName := range groupsReply.Groups {
-           responseMessageText += fmt.Sprintf("%s\n", groupName)
+            responseMessageText += fmt.Sprintf("%s\n", groupName)
         }
         break
     case "/select_group":
         responseMessageText = "Select group:"
-        groupsReply := getGroupsByUsername(ctx, upd.Message.UserFrom.Username)
-        replyKeyboard.Keyboard = make([][]tlg.KeyboardButton, len(groupsReply.Groups))
+        groupsReply := getGroupsByUsername(ctx, message.UserFrom.Username)
+        keyboard.Keyboard = make([][]tlg.InlineKeyboardButton, len(groupsReply.Groups))
         for i := 0; i < len(groupsReply.Groups); i++ {
-            replyKeyboard.Keyboard[i] = make([]tlg.KeyboardButton, 1)
-            replyKeyboard.Keyboard[i][0].Text = groupsReply.Groups[i]
+            keyboard.Keyboard[i] = make([]tlg.InlineKeyboardButton, 1)
+            keyboard.Keyboard[i][0].Text = groupsReply.Groups[i]
+            keyboard.Keyboard[i][0].CallbackData = fmt.Sprintf("selected_group=%s", groupsReply.Groups[i])
         }
-        replyKeyboard.OneTimeKeyboard = true
-        replyKeyboard.Selective = true
-        replyKeyboard.ResizeKeyboard = true
 
         userSessions[userId] = &UserSession{
             UserId:            userId,
@@ -113,48 +156,33 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
 
         break
     default:
-        if userSessions[userId].State == AwaitsGroupSelection {
-            userSessions[userId].SelectedGroupName = upd.Message.Text
-            userSessions[userId].State = GroupSelected
-        } else {
-            responseMessageText = "Unknown command"
-        }
+        responseMessageText = "Unknown command"
     }
-
-    fmt.Printf("%v", userSessions[userId])
 
     response := tlg.SendMessageResponse{
         Method:      "sendMessage",
-        ChatId:      upd.Message.Chat.Id,
+        ChatId:      message.Chat.Id,
         Text:        responseMessageText,
     }
-    if len(replyKeyboard.Keyboard)>0 {
-        response.ReplyMarkup = &replyKeyboard
+    if len(keyboard.Keyboard)>0 {
+        response.ReplyMarkup = &keyboard
     }
 
-    resBody, err := json.Marshal(response)
-    if err != nil {
-        http.Error(w, err.Error(), 500)
-        fmt.Println("Error marshaling response JSON: " + err.Error())
-        return
-    }
-
-    w.Header().Set("Content-Type", "application/json")
-    w.Write(resBody)
+    return response
 }
 
-func getGroupsByUsername(ctx context.Context, username string) *contract.GetGroupsReply  {
-    memberIdReply, err := groupBirthdayClient.GetMemberId(ctx, &contract.GetMemberIdRequest{TelegramUsername: username})
-    if err != nil {
-        panic(err)
+func processCallbackQuery(callbackQuery *tlg.CallbackQuery) tlg.AnswerCallbackQueryResponse  {
+    data := strings.Split(callbackQuery.Data, "=")
+    userId := callbackQuery.UserFrom.Id
+
+    if data[0] == "selected_group" {
+        if userSessions[userId].State == AwaitsGroupSelection {
+            userSessions[userId].SelectedGroupName = data[1]
+            userSessions[userId].State = GroupSelected
+        }
     }
-    groupsReply, err := groupBirthdayClient.GetGroups(ctx, &contract.GetGroupsRequest{
-        MemberId: memberIdReply.MemberId,
-    })
-    if err != nil {
-        panic(err)
-    }
-    return groupsReply
+
+    return tlg.AnswerCallbackQueryResponse{CallbackQueryId: callbackQuery.Id}
 }
 
 func main() {
