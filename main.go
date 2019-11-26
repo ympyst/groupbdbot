@@ -3,7 +3,6 @@ package main
 import (
     "encoding/json"
     "fmt"
-    _ "github.com/jinzhu/gorm/dialects/postgres"
     contract "github.com/ympyst/groupbirthday/contract"
     "golang.org/x/net/context"
     "google.golang.org/grpc"
