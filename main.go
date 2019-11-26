@@ -15,9 +15,17 @@ import (
 
 var groupBirthdayClient contract.GroupBirthdayClient
 
+type UserState string
+
+const (
+    Initiated UserState = "initiated"
+    AwaitsGroupSelection UserState = "awaits_group_selection"
+    GroupSelected UserState = "group_selected"
+)
+
 type UserSession struct {
     UserId int
-    State string
+    State UserState
     SelectedGroupName string
 }
 
@@ -49,7 +57,7 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
         fmt.Println("New user")
         userSessions[userId] = &UserSession{
             UserId:            userId,
-            State:             "initial",
+            State:             Initiated,
             SelectedGroupName: "",
         }
     }
@@ -60,7 +68,11 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
 
     switch upd.Message.Text {
     case "/start":
-        responseMessageText = "Welcome to Group Birthday Bot!\nUse /show_groups to list your groups"
+        responseMessageText = "Welcome to Group Birthday Bot!\n" +
+            "Available commands:\n" +
+            "/show_groups - show groups, of which you are a member\n" +
+            "/select_group - select group. You can further make action within selected group: view members list, organize birthday congratulation, etc.\n" +
+            "/list_birthdays - show members list of selected group with their birthday dates\n"
         break
     case "/show_groups":
         groupsReply := getGroupsByUsername(ctx, upd.Message.UserFrom.Username)
@@ -82,12 +94,12 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
 
         userSessions[userId] = &UserSession{
             UserId:            userId,
-            State:             "awaits_group_selection",
+            State:             AwaitsGroupSelection,
             SelectedGroupName: "",
         }
         break
     case "/list_birthdays":
-        if userSessions[userId].State == "group_selected" {
+        if userSessions[userId].State == GroupSelected {
             memberBirthdaysReply, err := groupBirthdayClient.GetMemberBirthdays(ctx, &contract.GetMemberBirthdaysRequest{GroupName: userSessions[userId].SelectedGroupName})
             if err != nil {
                 panic(err)
@@ -101,9 +113,9 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
 
         break
     default:
-        if userSessions[userId].State == "awaits_group_selection" {
+        if userSessions[userId].State == AwaitsGroupSelection {
             userSessions[userId].SelectedGroupName = upd.Message.Text
-            userSessions[userId].State = "group_selected"
+            userSessions[userId].State = GroupSelected
         } else {
             responseMessageText = "Unknown command"
         }
