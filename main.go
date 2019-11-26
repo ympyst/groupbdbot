@@ -35,12 +35,12 @@ var userSessions map[int]*UserSession
 func processUpdate(w http.ResponseWriter, req *http.Request) {
     defer req.Body.Close()
 
-    fmt.Print("\n➡ ️Received new request: ")
+    log.Print("\n➡ ️Received new request: ")
 
     body, err := ioutil.ReadAll(req.Body)
     if err != nil {
         http.Error(w, err.Error(), 500)
-        fmt.Println("Error reading request body: " + err.Error())
+        log.Fatalln("Error reading request body: " + err.Error())
         return
     }
 
@@ -48,11 +48,11 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
     err = json.Unmarshal(body, &upd)
     if err != nil {
         http.Error(w, err.Error(), 500)
-        fmt.Println("Error unmarshaling request JSON: " + err.Error())
+        log.Fatalln("Error unmarshaling request JSON: " + err.Error())
         return
     }
 
-    fmt.Printf("Message: %+v, CallbackQuery: %+v\n", upd.Message, upd.CallbackQuery)
+    log.Printf("Message: %+v, CallbackQuery: %+v\n", upd.Message, upd.CallbackQuery)
 
     var userId int;
     var responseBody []byte
@@ -70,7 +70,7 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
         responseBody, err = json.Marshal(response)
         if err != nil {
             http.Error(w, err.Error(), 500)
-            fmt.Println("Error marshaling response JSON: " + err.Error())
+            log.Fatalln("Error marshaling response JSON: " + err.Error())
             return
         }
     } else if upd.CallbackQuery != nil {
@@ -79,15 +79,18 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
         responseBody, err = json.Marshal(response)
         if err != nil {
             http.Error(w, err.Error(), 500)
-            fmt.Println("Error marshaling response JSON: " + err.Error())
+            log.Fatalln("Error marshaling response JSON: " + err.Error())
             return
         }
     }
 
-    fmt.Printf("User session: %v", userSessions[userId])
+    log.Printf("User session: %v", userSessions[userId])
 
     w.Header().Set("Content-Type", "application/json")
-    w.Write(responseBody)
+    _, err = w.Write(responseBody)
+    if err != nil {
+        panic(err)
+    }
 }
 
 func getGroupsByUsername(ctx context.Context, username string) *contract.GetGroupsReply  {
@@ -190,20 +193,20 @@ func main() {
     http.HandleFunc("/" + token, processUpdate)
 
     serverAddr := os.Getenv("SERVER_ADDR")
-    fmt.Println(serverAddr)
+
     var opts []grpc.DialOption
     opts = append(opts, grpc.WithInsecure())
     conn, err := grpc.Dial(serverAddr, opts...)
     if err != nil {
         log.Fatalf("fail to dial: %v", err)
     }
-    defer conn.Close()
+    defer func() {err := conn.Close(); log.Println(err)}()
     groupBirthdayClient = contract.NewGroupBirthdayClient(conn)
 
     userSessions = make(map[int]*UserSession)
 
     port := os.Getenv("PORT")
-    fmt.Printf("🤖 Now listening port %v\n", port)
+    log.Printf("🤖 Now listening port %v\n", port)
     err = http.ListenAndServe(":" + port, nil)
     if err != nil {
         panic(err)
