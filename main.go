@@ -86,8 +86,8 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
         }
     }
 
-    log.Printf("User session: %v", userSessions[userId])
-    log.Printf("ResponseBody: %+v", responseBody)
+    log.Printf("User session: %+v", userSessions[userId])
+    log.Printf("ResponseBody: %q", string(responseBody))
 
     w.Header().Set("Content-Type", "application/json")
     _, err = w.Write(responseBody)
