@@ -194,7 +194,7 @@ func processCallbackQuery(callbackQuery *tlg.CallbackQuery) tlg.AnswerCallbackQu
         Method: "answerCallbackQuery",
         CallbackQueryId: callbackQuery.Id,
         Text: text,
-        ShowAlert: true,
+        ShowAlert: false,
     }
 }
 
