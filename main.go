@@ -183,11 +183,11 @@ func processCallbackQuery(callbackQuery *tlg.CallbackQuery) tlg.AnswerCallbackQu
         if userSessions[userId].State == AwaitsGroupSelection {
             userSessions[userId].SelectedGroupName = data[1]
             userSessions[userId].State = GroupSelected
-            text = "Selected group: " + data[1]
+            text = "Selected group: " + userSessions[userId].SelectedGroupName
         }
     }
 
-    return tlg.AnswerCallbackQueryResponse{CallbackQueryId: callbackQuery.Id, Text: text}
+    return tlg.AnswerCallbackQueryResponse{CallbackQueryId: callbackQuery.Id, Text: text, ShowAlert: true}
 }
 
 func main() {

@@ -53,6 +53,7 @@ type SendMessageResponse struct {
 type AnswerCallbackQueryResponse struct {
 	CallbackQueryId string `json:"callback_query_id"`
 	Text string `json:"text"`
+	ShowAlert bool `json:"show_alert"`
 }
 
 type ReplyKeyboardMarkup struct {
