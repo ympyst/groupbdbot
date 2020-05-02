@@ -51,6 +51,7 @@ type SendMessageResponse struct {
 }
 
 type AnswerCallbackQueryResponse struct {
+	Method string `json:"method"`
 	CallbackQueryId string `json:"callback_query_id"`
 	Text string `json:"text"`
 	ShowAlert bool `json:"show_alert"`

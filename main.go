@@ -190,7 +190,12 @@ func processCallbackQuery(callbackQuery *tlg.CallbackQuery) tlg.AnswerCallbackQu
         }
     }
 
-    return tlg.AnswerCallbackQueryResponse{CallbackQueryId: callbackQuery.Id, Text: text, ShowAlert: true}
+    return tlg.AnswerCallbackQueryResponse{
+        Method: "answerCallbackQuery",
+        CallbackQueryId: callbackQuery.Id,
+        Text: text,
+        ShowAlert: true,
+    }
 }
 
 func main() {
