@@ -35,7 +35,7 @@ var userSessions map[int]*UserSession
 func processUpdate(w http.ResponseWriter, req *http.Request) {
     defer req.Body.Close()
 
-    log.Print("\n➡ ️Received new request: ")
+    log.Print("➡ ️Received new request: ")
 
     body, err := ioutil.ReadAll(req.Body)
     if err != nil {
@@ -177,15 +177,17 @@ func processMessage(message *tlg.Message) tlg.SendMessageResponse {
 func processCallbackQuery(callbackQuery *tlg.CallbackQuery) tlg.AnswerCallbackQueryResponse  {
     data := strings.Split(callbackQuery.Data, "=")
     userId := callbackQuery.UserFrom.Id
+    text := ""
 
     if data[0] == "selected_group" {
         if userSessions[userId].State == AwaitsGroupSelection {
             userSessions[userId].SelectedGroupName = data[1]
             userSessions[userId].State = GroupSelected
+            text = "Selected group: " + data[1]
         }
     }
 
-    return tlg.AnswerCallbackQueryResponse{CallbackQueryId: callbackQuery.Id}
+    return tlg.AnswerCallbackQueryResponse{CallbackQueryId: callbackQuery.Id, Text: text}
 }
 
 func main() {
