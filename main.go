@@ -54,7 +54,7 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
 
     log.Printf("Message: %+v, CallbackQuery: %+v\n", upd.Message, upd.CallbackQuery)
 
-    var userId int;
+    var userId int
     var responseBody []byte
 
     if upd.Message != nil {
@@ -67,6 +67,7 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
             }
         }
         response := processMessage(upd.Message)
+        log.Printf("Response: %+v", response)
         responseBody, err = json.Marshal(response)
         if err != nil {
             http.Error(w, err.Error(), 500)
@@ -76,6 +77,7 @@ func processUpdate(w http.ResponseWriter, req *http.Request) {
     } else if upd.CallbackQuery != nil {
         userId = upd.CallbackQuery.UserFrom.Id
         response := processCallbackQuery(upd.CallbackQuery)
+        log.Printf("Response: %+v", response)
         responseBody, err = json.Marshal(response)
         if err != nil {
             http.Error(w, err.Error(), 500)
